@@ -1,0 +1,228 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="Keywords" content="blog"/>
+    <meta name="Description" content="blog"/>
+    <title>Simple</title>
+    <link rel="shortcut icon" href="/static/favicon.png"/>
+    <link rel="stylesheet" type="text/css" href="/main.css" />
+</head>
+<body>
+<div class="main">
+    <div class="header">
+    	<ul id="pages">
+            <li><a href="/">home</a></li>
+            <li><a href="/#/tags">tags</a></li>
+            <li><a href="/#/archive">archive</a></li>
+    	</ul>
+    </div>
+	<div class="wrap-header">
+	<h1>
+    <a href="/" id="title"></a>
+	</h1>
+	</div>
+<div id="md" style="display: none;">
+<!-- markdown -->
+EKF在对非线性系统进行线性化处理时，存在以下缺点：
+
+##应用
+1.UKF在单观测站目标跟踪中的应用  
+2.UKF在匀加速直线运动目标跟踪中的应用  
+
+  
+
+~~~~{python}
+function TrackUKF(tf)
+%
+%INPUTS:
+%       tf=simulation length
+clear;clc;
+if ~exist('tf','var')
+    tf=60;
+end
+
+dt=0.1;    %simulation step size
+
+%Define the north and east coordinates of the two tracking sttions.
+N1=20;
+E1=0;
+N2=0;
+E2=20;
+
+F=[1 0 dt 0;0 1 0 dt;0 0 1 0;0 0 0 1];
+Q=diag([0 0 4 4]);
+R=diag([1 1]);
+x=[0;0;50;50];
+xhatplus=x;
+Pplus=0.01*eye(4);  %must be positive definite for UKF
+%Initialize arrays
+xArr=x;
+xhatArr=xhatplus;
+PArr(:,:,1)=Pplus;
+
+N=length(x);
+k=1;
+for t=dt:dt:tf
+    x=F*x+sqrt(Q)*randn(4,1);
+    y(1,1)=sqrt((x(1)-N1)^2+(x(2)-E1)^2);
+    y(2,1)=sqrt((x(1)-N2)^2+(x(2)-E2)^2);
+    y=y+sqrt(R)*randn(2,1);
+    [root,p]=chol(4*Pplus);
+    sigma=zeros(4,2*N);
+    for i=1:N
+        sigma(:,i)=xhatplus+root(i,:)';
+        sigma(:,i+N)=xhatplus-root(i,:)';
+    end
+    for i=1:2*N
+        sigma(:,i)=F*sigma(:,i);
+    end
+    xhatminus=zeros(N,1);
+    for i=1:2*N
+        xhatminus=xhatminus+sigma(:,i)/2/N;
+    end
+    Pminus=zeros(N,N);
+    for i=1:2*N
+        Pminus=Pminus+(sigma(:,i)-xhatminus)*(sigma(:,i)-xhatminus)'/2/N;
+    end
+    Pminus=Pminus+Q;
+    
+    %UKF measurement update
+    [root,p]=chol(N*Pminus);
+    for i=1:N
+        sigma(:,i)=xhatminus+root(i,:)';
+        sigma(:,i+N)=xhatminus-root(i,:)';
+    end
+    for i=1:2*N
+        nhat=sigma(1,i);
+        ehat=sigma(2,i);
+        yukf(1,i)=sqrt((nhat-N1)^2+(ehat-E1)^2);
+        yukf(2,i)=sqrt((nhat-N2)^2+(ehat-E2)^2);
+    end
+    yhat=0;
+    for i=1:2*N
+        yhat=yhat+yukf(:,i)/2/N;
+    end
+    Py=zeros(2,2);
+    Pxy=zeros(N,2);
+    for i=1:2*N
+        Py=Py+(yukf(:,i)-yhat)*(yukf(:,i)-yhat)'/2/N;
+        Pxy=Pxy+(sigma(:,i)-xhatminus)*(yukf(:,i)-yhat)'/2/N;
+    end
+    Py=Py+R;
+    Kukf=Pxy*pinv(Py);
+    xhatplus=xhatminus+Kukf*(y-yhat);
+    Pplus=Pminus-Kukf*Py*Kukf';
+    %save data for plotting
+    xArr=[xArr x];
+    xhatArr=[xhatArr xhatplus];
+    k=k+1;
+    PArr(:,:,k)=Pplus;
+end
+
+%plot results
+close all;
+k=0:dt:tf;
+figure;set(gcf,'Color','White');
+subplot(2,2,1);set(gca,'FontSize',12);
+plot(k,xArr(1,:)-xhatArr(1,:),'b-','LineWidth',2);
+title('North Position Estimation Error');
+subplot(2,2,2);set(gca,'FontSize',12);
+plot(k,xArr(2,:)-xhatArr(2,:),'b-','LineWidth',2);
+title('East Position Estimation Error');
+subplot(2,2,3);set(gca,'FontSize',12);
+plot(k,xArr(3,:)-xhatArr(3,:),'b-','LineWidth',2);
+xlabel('time');title('North Velocity Estimation Error');
+subplot(2,2,4);set(gca,'FontSize',12);
+plot(k,xArr(4,:)-xhatArr(4,:),'b-','LineWidth',2);
+xlabel('time');title('East Velocity Estimation Error');
+%plot UKF variance estimates
+figure;set(gcf,'Color','White');set(gca,'FontSize',12);hold on;box on;
+plot(k,sqrt(squeeze(PArr(1,1,:))),'r:','LineWidth',2);
+plot(k,sqrt(squeeze(PArr(2,2,:))),'b--','LineWidth',2);
+plot(k,sqrt(squeeze(PArr(3,3,:))),'k-','LineWidth',2);
+plot(k,sqrt(squeeze(PArr(4,4,:))),'m-','LineWidth',2);
+legend('North Position','East Position','North Velocity','East Velocity');
+xlabel('time');ylabel('UKF Std Dev Estimate');
+%Compare experimental and theoretical standard deviations of estimation
+%errors
+EstStd=std(xArr'-xhatArr');
+disp(['Experimental std dev of set err =',num2str(EstStd)]);
+~~~~
+<!-- markdown end -->
+</div>
+<div class="entry" id="main">
+<!-- content -->
+
+<!-- content end -->
+</div>
+<br>
+<br>
+    <div id="disqus_thread"></div>
+	<div class="footer">
+		<p>© Copyright 2014 by isnowfy, Designed by isnowfy</p>
+	</div>
+</div>
+<script src="main.js"></script>
+<script id="content" type="text/mustache">
+    <h1>{{title}}</h1>
+    <div class="tag">
+    {{date}}
+    {{#tags}}
+    <a href="/#/tag/{{name}}">#{{name}}</a>
+    {{/tags}}
+    </div>
+</script>
+<script id="pagesTemplate" type="text/mustache">
+    {{#pages}}
+    <li>
+        <a href="{{path}}">{{title}}</a>
+    </li>
+    {{/pages}}
+</script>
+<script>
+$(document).ready(function() {
+    $.ajax({
+        url: "main.json",
+        type: "GET",
+        dataType: "json",
+        success: function(data) {
+            $("#title").html(data.name);
+            var pagesTemplate = Hogan.compile($("#pagesTemplate").html());
+            var pagesHtml = pagesTemplate.render({"pages": data.pages});
+            $("#pages").append(pagesHtml);
+            //path
+            var path = "IMMKF.html";
+            //path end
+            var now = 0;
+            for (var i = 0; i < data.posts.length; ++i)
+                if (path == data.posts[i].path)
+                    now = i;
+            var post = data.posts[now];
+            var tmp = post.tags.split(" ");
+            var tags = [];
+            for (var i = 0; i < tmp.length; ++i)
+                if (tmp[i].length > 0)
+                    tags.push({"name": tmp[i]});
+            var contentTemplate = Hogan.compile($("#content").html());
+            var contentHtml = contentTemplate.render({"title": post.title, "tags": tags, "date": post.date});
+            $("#main").prepend(contentHtml);
+            if (data.disqus_shortname.length > 0) {
+                var disqus_shortname = data.disqus_shortname;
+                (function() {
+                    var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+                    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+                    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+                })();
+            }
+        }
+    });
+});
+</script>
+<script src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ["\\(", "\\)"]], processEscapes: true}});
+</script>
+</body>
+</html>
