@@ -25,14 +25,12 @@
 	</div>
 <div id="md" style="display: none;">
 <!-- markdown -->
-##hello test
-this is the first blog on github ！
-please input an equation $x^2=1$
+卡尔曼滤波广泛应用与跟踪、导航、数据融合等领域，
 <!-- markdown end -->
 </div>
 <div class="entry" id="main">
 <!-- content -->
-
+<p>卡尔曼滤波广泛应用与跟踪、导航、数据融合等领域，</p>
 <!-- content end -->
 </div>
 <br>
